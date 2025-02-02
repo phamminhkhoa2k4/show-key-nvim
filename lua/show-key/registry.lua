@@ -10,10 +10,19 @@ local M = {}
 ---@type Shortcut[]
 M.shortcuts = {}
 
----Register a manual shortcut
+---Register a shortcut
 ---@param shortcut Shortcut
 function M.register(shortcut)
-  shortcut.source = "manual"
+  -- Prevent duplicates, prioritize manual over auto
+  for i, s in ipairs(M.shortcuts) do
+    if s.keys == shortcut.keys then
+      if shortcut.source == "manual" then
+        M.shortcuts[i] = shortcut -- Overwrite auto with manual
+      end
+      return
+    end
+  end
+
   table.insert(M.shortcuts, shortcut)
 end
 

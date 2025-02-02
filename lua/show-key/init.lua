@@ -19,8 +19,13 @@ end
 
 ---Show the shortcut popup
 function M.show()
+  if config.options.auto_detect then
+    require("show-key.scanner").scan()
+  end
+
   -- Placeholder for UI window creation
-  vim.notify("show-key: Showing shortcuts popup (UI coming soon)", vim.log.levels.INFO)
+  local all = registry.get_all()
+  vim.notify(string.format("show-key: Found %d shortcuts. UI coming soon.", #all), vim.log.levels.INFO)
 end
 
 return M
