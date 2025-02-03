@@ -23,9 +23,7 @@ function M.show()
     require("show-key.scanner").scan()
   end
 
-  -- Placeholder for UI window creation
-  local all = registry.get_all()
-  vim.notify(string.format("show-key: Found %d shortcuts. UI coming soon.", #all), vim.log.levels.INFO)
+  require("show-key.ui").create_window()
 end
 
 return M
