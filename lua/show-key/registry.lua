@@ -1,11 +1,10 @@
 local M = {}
 
 ---@class Shortcut
+---@field title? string
 ---@field keys string
 ---@field desc string
 ---@field group string
----@field action? function|string
----@field source "manual"|"auto"
 
 ---@type Shortcut[]
 M.shortcuts = {}
@@ -13,18 +12,17 @@ M.shortcuts = {}
 ---Register a shortcut
 ---@param shortcut Shortcut
 function M.register(shortcut)
-  -- Prevent duplicates, prioritize manual over auto
+  -- Prevent duplicates
   for i, s in ipairs(M.shortcuts) do
     if s.keys == shortcut.keys then
-      if shortcut.source == "manual" then
-        M.shortcuts[i] = shortcut -- Overwrite auto with manual
-      end
+      M.shortcuts[i] = shortcut
       return
     end
   end
 
   table.insert(M.shortcuts, shortcut)
 end
+
 
 ---Get all shortcuts
 ---@return Shortcut[]

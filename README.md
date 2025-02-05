@@ -1,16 +1,17 @@
 # show-key.nvim
 
-A premium, searchable Neovim shortcut popup with automatic keymap detection and grouping.
+A premium, searchable Neovim shortcut viewer popup with manual grouping and modern card-based UI.
 
 ![ShowKey Demo](https://via.placeholder.com/800x400?text=ShowKey+UI+Demo) *(Replace with actual screenshot)*
 
 ## ✨ Features
 
-- 🔍 **Reactive Search**: Filter shortcuts by keys, description, or group as you type.
-- 📦 **Smart Grouping**: Automatically groups keymaps by prefix (Leader, Go, etc.) or manual category.
-- 🤖 **Auto-Detection**: Scans your existing Neovim keymaps (global and buffer-local) that have a description.
-- 🎨 **Premium UI**: Modern card-based layout with syntax highlighting and key badges.
-- ⌨️ **Quick Execution**: Navigate with `j`/`k` and press `Enter` to run the shortcut.
+- 🔍 **Reactive Search**: Filter shortcuts by title, keys, description, or group as you type.
+- 📦 **Manual Grouping**: Organize your keymaps into custom categories.
+- 🎨 **Premium UI**: Modern card-based layout with separate Title (Bold) and Description (Italic).
+- 🌫️ **Transparency**: Support for transparent backgrounds (winblend).
+- ⌨️ **Badges**: Beautifully rendered keybinding badges for clear visibility.
+- 🖱️ **Navigation**: Smoothly navigate with `j`/`k` and close with `q`/`Esc`.
 
 ## 📦 Installation
 
@@ -19,10 +20,27 @@ Using [lazy.nvim](https://github.com/folke/lazy.nvim):
 ```lua
 {
   "your-username/show-key.nvim",
-  config = function()
-    require("show-key").setup({
-      -- your configuration here
-    })
+  -- If using local development
+  -- dir = "/path/to/show-key.nvim", 
+  opts = {
+    title = "My Shortcuts",
+    shortcuts = {
+      { 
+        title = "Find Files",
+        keys = "<leader>ff", 
+        desc = "Search files using Telescope", 
+        group = "Files" 
+      },
+      { 
+        title = "Git Status",
+        keys = "<leader>gs", 
+        desc = "Open Neogit status buffer", 
+        group = "Git" 
+      },
+    }
+  },
+  config = function(_, opts)
+    require("show-key").setup(opts)
   end,
 }
 ```
@@ -36,7 +54,7 @@ require("show-key").setup({
   position = "center",
   width = 0.8,
   height = 0.8,
-  auto_detect = true, -- Auto-scan existing keymaps
+  shortcuts = {}, -- List of shortcuts to register on setup
 })
 ```
 
@@ -46,38 +64,38 @@ require("show-key").setup({
 Run `:ShowKey` to open the popup.
 
 ### Manual Registration
-You can register custom shortcut groups in your `init.lua`:
+You can also register shortcuts after setup:
 
 ```lua
 require("show-key").register_shortcuts({
   { 
+    title = "Find Files",
     keys = "<leader>ff", 
-    desc = "Find Files", 
+    desc = "Telescope find_files", 
     group = "File Management", 
-    action = "Telescope find_files" 
   },
   { 
+    title = "Git Status",
     keys = "<leader>gs", 
-    desc = "Git Status", 
+    desc = "Open Neogit dashboard", 
     group = "Git Operations", 
-    action = function() print("Opening Git Status...") end 
   },
 })
 ```
 
 ### Controls in Popup
 - `j` / `k`: Move selection down/up.
-- `<Enter>`: Execute the selected shortcut and close.
-- `<Esc>` / `q`: Close the popup.
-- `[any printable char]`: Filter list.
+- `[any printable char]`: Filter list (searches titles, keys, and descriptions).
 - `<BS>`: Delete last search character.
+- `<Esc>` / `q`: Close the popup.
 
 ## 🎨 Highlights
-You can customize the colors by overriding these highlight groups:
+Customize these highlight groups for a unique look:
 - `ShowKeyGroup`: Group headers.
-- `ShowKeyCardTitle`: Shortcut description.
-- `ShowKeyBadge`: Keybinding badges.
-- `ShowKeySelected`: Selected card background.
+- `ShowKeyCardTitle`: Shortcut main title.
+- `ShowKeyCardDesc`: Shortcut secondary description.
+- `ShowKeyBadge`: Keybinding badges background/foreground.
+- `ShowKeySelected`: Active selection row background.
 - `ShowKeySearchIcon`: The search icon in the header.
 
 ## License

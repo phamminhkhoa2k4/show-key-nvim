@@ -7,6 +7,9 @@ local M = {}
 ---@param opts? ShowKeyConfig
 function M.setup(opts)
   config.setup(opts)
+  if config.options.shortcuts then
+    M.register_shortcuts(config.options.shortcuts)
+  end
 end
 
 ---Register a list of shortcuts
@@ -19,10 +22,6 @@ end
 
 ---Show the shortcut popup
 function M.show()
-  if config.options.auto_detect then
-    require("show-key.scanner").scan()
-  end
-
   require("show-key.ui").create_window()
 end
 

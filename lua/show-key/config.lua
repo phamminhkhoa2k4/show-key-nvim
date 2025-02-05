@@ -11,9 +11,10 @@ local default_config = {
   title = "Neovim Shortcuts",
   border = "rounded",
   position = "center",
+  transparent = true,
   width = 0.8,
   height = 0.8,
-  auto_detect = true,
+  shortcuts = {},
 }
 
 ---@type ShowKeyConfig
