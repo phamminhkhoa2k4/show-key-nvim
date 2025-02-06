@@ -1,12 +1,6 @@
 local M = {}
 
----@class ShowKeyConfig
----@field title string The title of the popup
----@field border string|table Border style for the floating window
----@field position "center"|"top"|"bottom" Position of the popup
----@field width number Width percentage (0-1)
----@field height number Height percentage (0-1)
----@field auto_detect boolean Whether to automatically detect keymaps
+---@field styles table Highlight groups customization
 local default_config = {
   title = "Neovim Shortcuts",
   border = "rounded",
@@ -15,6 +9,16 @@ local default_config = {
   width = 0.8,
   height = 0.8,
   shortcuts = {},
+  styles = {
+    header = { fg = "#7aa2f7", bold = true },
+    group = { fg = "#bb9af7", bold = true },
+    card_title = { fg = "#c0caf5", bold = true },
+    card_desc = { fg = "#565f89", italic = true },
+    badge = { bg = "#3b4261", fg = "#7aa2f7", bold = true },
+    border = { fg = "#7aa2f7" },
+    selected_border = { fg = "#7aa2f7" },
+    search_icon = { fg = "#7aa2f7" },
+  },
 }
 
 ---@type ShowKeyConfig

@@ -20,7 +20,7 @@ function M.create_window()
   local total_width = math.floor(stats.width * config.options.width)
   local total_height = math.floor(stats.height * config.options.height)
   
-  local header_height = 3
+  local header_height = 6
   local body_height = math.max(1, total_height - header_height)
 
   local row = math.floor((stats.height - total_height) / 2)
@@ -36,18 +36,23 @@ function M.create_window()
     col = col,
     style = "minimal",
     border = { "╭", "─", "╮", "│", "", "", "", "│" }, -- Only top borders
-    title = " " .. config.options.title .. " ",
-    title_pos = "center",
+    focusable = false, -- Prevent focus and scrolling
   }
   M.header_win = vim.api.nvim_open_win(M.header_buf, false, header_opts)
-
+  vim.api.nvim_win_set_option(M.header_win, "winhighlight", "Normal:ShowKeyNormal,FloatBorder:ShowKeyBorder")
+  vim.api.nvim_win_set_option(M.header_win, "scrolloff", 0)
+  vim.api.nvim_win_set_option(M.header_win, "sidescrolloff", 0)
+  vim.api.nvim_win_set_option(M.header_win, "wrap", false)
+  vim.api.nvim_win_set_cursor(M.header_win, {1, 0}) -- Lock at top
+  vim.api.nvim_win_set_option(M.header_win, "cursorline", false)
+  vim.api.nvim_win_set_option(M.header_win, "cursorcolumn", false)
   -- 2. Create Body Window
   M.body_buf = vim.api.nvim_create_buf(false, true)
   local body_opts = {
     relative = "editor",
     width = total_width,
     height = body_height,
-    row = row + header_height + 1, -- +1 for border adjustment
+    row = row + header_height + 1, 
     col = col,
     style = "minimal",
     border = { "", "", "", "│", "╯", "─", "╰", "│" }, -- Only bottom borders
@@ -84,21 +89,35 @@ function M.create_window()
 
   M.setup_keymaps()
   M.render()
+
+  -- Auto-close when focus leaves
+  vim.api.nvim_create_autocmd("WinLeave", {
+    buffer = M.body_buf,
+    once = true,
+    callback = function()
+      M.close()
+    end,
+  })
 end
 
 ---Setup highlighting groups
 function M.setup_highlights()
   local bg = config.options.transparent and "NONE" or "#1f2335"
+  local s = config.options.styles
   
+  -- Base
   vim.api.nvim_set_hl(0, "ShowKeyNormal", { bg = bg })
-  vim.api.nvim_set_hl(0, "ShowKeyBorder", { bg = bg, fg = "#7aa2f7" })
-  vim.api.nvim_set_hl(0, "ShowKeyHeader", { fg = "#7aa2f7", bold = true })
-  vim.api.nvim_set_hl(0, "ShowKeyGroup", { fg = "#bb9af7", bold = true })
-  vim.api.nvim_set_hl(0, "ShowKeyCardTitle", { fg = "#c0caf5", bold = true })
-  vim.api.nvim_set_hl(0, "ShowKeyCardDesc", { fg = "#565f89", italic = true })
-  vim.api.nvim_set_hl(0, "ShowKeyBadge", { bg = "#3b4261", fg = "#7aa2f7", bold = true })
-  vim.api.nvim_set_hl(0, "ShowKeySelected", { bg = "#364a82", bold = true }) -- Brighter highlight
-  vim.api.nvim_set_hl(0, "ShowKeySearchIcon", { fg = "#7aa2f7" })
+  
+  -- Dynamic styles from config
+  vim.api.nvim_set_hl(0, "ShowKeyBorder", vim.tbl_extend("force", { bg = bg }, s.border))
+  vim.api.nvim_set_hl(0, "ShowKeyHeader", s.header)
+  vim.api.nvim_set_hl(0, "ShowKeyGroup", s.group)
+  vim.api.nvim_set_hl(0, "ShowKeyCardTitle", s.card_title)
+  vim.api.nvim_set_hl(0, "ShowKeyCardDesc", s.card_desc)
+  vim.api.nvim_set_hl(0, "ShowKeyBadge", s.badge)
+  vim.api.nvim_set_hl(0, "ShowKeySelected", { bg = "NONE" })
+  vim.api.nvim_set_hl(0, "ShowKeySelectedBorder", vim.tbl_extend("force", { bg = bg }, s.selected_border))
+  vim.api.nvim_set_hl(0, "ShowKeySearchIcon", s.search_icon)
 end
 
 ---Setup keymaps
@@ -111,15 +130,35 @@ function M.setup_keymaps()
   vim.keymap.set("n", "j", function()
     local shortcuts = M.get_filtered_shortcuts()
     if #shortcuts == 0 then return end
-    M.selected_idx = math.min(M.selected_idx + 1, #shortcuts)
+    M.selected_idx = math.min(M.selected_idx + 2, #shortcuts)
     M.render_body()
   end, opts)
   
   vim.keymap.set("n", "k", function()
     local shortcuts = M.get_filtered_shortcuts()
     if #shortcuts == 0 then return end
-    M.selected_idx = math.max(M.selected_idx - 1, 1)
+    M.selected_idx = math.max(M.selected_idx - 2, 1)
     M.render_body()
+  end, opts)
+
+  vim.keymap.set("n", "l", function()
+    local shortcuts = M.get_filtered_shortcuts()
+    if #shortcuts == 0 then return end
+    -- Move to right if on left
+    if M.selected_idx % 2 ~= 0 then
+      M.selected_idx = math.min(M.selected_idx + 1, #shortcuts)
+      M.render_body()
+    end
+  end, opts)
+
+  vim.keymap.set("n", "h", function()
+    local shortcuts = M.get_filtered_shortcuts()
+    if #shortcuts == 0 then return end
+    -- Move to left if on right
+    if M.selected_idx % 2 == 0 then
+      M.selected_idx = math.max(M.selected_idx - 1, 1)
+      M.render_body()
+    end
   end, opts)
 
   -- Search handling: capture almost any printable character and common symbols
@@ -178,10 +217,26 @@ function M.render_header()
   
   local win_width = vim.api.nvim_win_get_width(M.header_win)
   local search_prompt = M.filter_text == "" and "Type to search..." or M.filter_text
+  
+  local title_text = config.options.title:upper()
+  local title_icon = "󰌌"
+  local full_title = title_icon .. "  " .. title_text
+  local title_padding = math.floor((win_width - vim.api.nvim_strwidth(full_title)) / 2)
+  local title_line = string.rep(" ", title_padding) .. full_title
+  
+  local inner_width = win_width - 8
+  local border_top = "  ╭" .. string.rep("─", inner_width) .. "╮"
+  local search_line = "  │   " .. search_prompt .. string.rep(" ", math.max(0, inner_width - #search_prompt - 4)) .. "│"
+  local border_bot = "  ╰" .. string.rep("─", inner_width) .. "╯"
+  local separator = string.rep("─", win_width)
+
   local lines = {
-    string.rep(" ", 2) .. "  " .. search_prompt,
-    string.rep(" ", 2) .. string.rep("─", win_width - 4),
-    ""
+    title_line,
+    "",
+    border_top,
+    search_line,
+    border_bot,
+    separator
   }
   
   vim.api.nvim_buf_set_lines(M.header_buf, 0, -1, false, lines)
@@ -189,15 +244,31 @@ function M.render_header()
   local ns = vim.api.nvim_create_namespace("show-key-header")
   vim.api.nvim_buf_clear_namespace(M.header_buf, ns, 0, -1)
   
-  -- Highlight search icon ( is usually 3 bytes in UTF-8)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeySearchIcon", 0, 2, 5)
+  -- Title Highlights (Row 0)
+  local icon_start = title_padding
+  local text_start_h = icon_start + #title_icon + 2
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyGroup", 0, icon_start, icon_start + #title_icon)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 0, text_start_h, -1)
   
-  -- If searching, highlight the search text
+  -- Search Box Highlights (Rows 2, 3, 4)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 2, 2, -1)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 3, 2, 5) 
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 3, win_width - 4, -1)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 2, -1)
+  
+  -- Highlight search icon (Row 3)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeySearchIcon", 3, 4, 7)
+  
+  -- Highlight search text (Row 3)
+  local text_start = 9
   if M.filter_text ~= "" then
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 0, 7, -1)
+    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 3, text_start, text_start + #M.filter_text)
   else
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 0, 7, -1)
+    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 3, text_start, text_start + #search_prompt)
   end
+
+  -- Separator Highlight (Row 5)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 5, 0, -1)
   
   vim.api.nvim_buf_set_option(M.header_buf, "modifiable", false)
 end
@@ -211,68 +282,155 @@ function M.render_body()
 
   local shortcuts = M.get_filtered_shortcuts()
   local lines = {}
-  local hls = {} -- To store highlight info {row, col_start, col_end, hl_group}
+  local hls = {} 
   local selected_row = nil
   local win_width = vim.api.nvim_win_get_width(M.body_win)
+  
+  -- Calculate column width based on window width
+  -- Left margin (2) | Card 1 | Separator (3) | Card 2 | Right margin (2)
+  local col_width = math.floor((win_width - 7) / 2)
+  local inner_w = col_width - 4
+
+  local function get_card_lines(s)
+    local title_text = s.title or s.desc
+    local keys_str = "[" .. s.keys .. "]"
+    local desc_text = s.title and s.desc or ""
+    
+    local sw = vim.api.nvim_strwidth
+    
+    -- Truncate title
+    while sw(title_text) > (inner_w - sw(keys_str) - 2) do
+      title_text = title_text:sub(1, #title_text - 1)
+    end
+    
+    -- Truncate desc
+    while sw(desc_text) > inner_w do
+      desc_text = desc_text:sub(1, #desc_text - 1)
+    end
+
+    local top = "╭" .. string.rep("─", inner_w + 2) .. "╮"
+    local mid1 = "│ " .. title_text .. string.rep(" ", inner_w - sw(title_text) - sw(keys_str)) .. keys_str .. " │"
+    local mid2 = "│ " .. desc_text .. string.rep(" ", inner_w - sw(desc_text)) .. " │"
+    local bot = "╰" .. string.rep("─", inner_w + 2) .. "╯"
+
+    return { 
+      top = top, mid1 = mid1, mid2 = mid2, bot = bot,
+      title = title_text, desc = desc_text, keys = keys_str 
+    }
+  end
 
   local current_row = 0
   if #shortcuts == 0 then
     table.insert(lines, "    ∅ No shortcuts found")
     table.insert(hls, { 0, 4, -1, "ShowKeyCardDesc" })
   else
-    local current_group = ""
-    for i, s in ipairs(shortcuts) do
-      if s.group ~= current_group then
-        current_group = s.group
-        table.insert(lines, "  " .. current_group:upper())
-        table.insert(lines, "")
-        table.insert(hls, { current_row, 2, -1, "ShowKeyGroup" })
-        current_row = current_row + 2
+    local groups = {}
+    local group_order = {}
+    for _, s in ipairs(shortcuts) do
+      if not groups[s.group] then
+        groups[s.group] = {}
+        table.insert(group_order, s.group)
       end
-      
-      local is_selected = (i == M.selected_idx)
-      local title_text = s.title or s.desc
-      local title_str = "    " .. title_text
-      local desc_str = "      " .. (s.title and s.desc or "")
-      local keys_str = s.keys
-      
-      local pad = win_width - #title_str - #keys_str - 8
-      table.insert(lines, title_str .. string.rep(" ", math.max(1, pad)) .. keys_str)
-      table.insert(hls, { current_row, 4, #title_str, "ShowKeyCardTitle" })
-      table.insert(hls, { current_row, win_width - #keys_str - 4, win_width - 4, "ShowKeyBadge" })
+      table.insert(groups[s.group], s)
+    end
 
-      if s.title and s.desc then
-        table.insert(lines, desc_str)
-        table.insert(lines, "")
-        table.insert(hls, { current_row + 1, 6, -1, "ShowKeyCardDesc" })
-      else
-        table.insert(lines, "")
-      end
+    for _, gname in ipairs(group_order) do
+      local g_shortcuts = groups[gname]
+      table.insert(lines, "  " .. gname:upper())
+      table.insert(lines, "")
+      table.insert(hls, { current_row, 2, -1, "ShowKeyGroup" })
+      current_row = current_row + 2
 
-      if is_selected then
-        selected_row = current_row + 1
-        table.insert(hls, { current_row, 0, -1, "ShowKeySelected" })
-        if s.title and s.desc then
-          table.insert(hls, { current_row + 1, 0, -1, "ShowKeySelected" })
+      for i = 1, #g_shortcuts, 2 do
+        local s1 = g_shortcuts[i]
+        local s2 = g_shortcuts[i+1]
+        
+        local idx1 = 0
+        for k, v in ipairs(shortcuts) do if v == s1 then idx1 = k break end end
+        local idx2 = 0
+        if s2 then
+          for k, v in ipairs(shortcuts) do if v == s2 then idx2 = k break end end
         end
+
+        local c1 = get_card_lines(s1)
+        local c2 = s2 and get_card_lines(s2) or { top="", mid1="", mid2="", bot="", keys="" }
+        
+        local left_margin = "  "
+        local sep = "   "
+        table.insert(lines, left_margin .. c1.top .. sep .. c2.top)
+        table.insert(lines, left_margin .. c1.mid1 .. sep .. c2.mid1)
+        table.insert(lines, left_margin .. c1.mid2 .. sep .. c2.mid2)
+        table.insert(lines, left_margin .. c1.bot .. sep .. c2.bot)
+        table.insert(lines, "")
+
+        -- Helper to add highlights for a card
+        local function add_card_hls(s, idx, row, card, is_second_col, first_card_widths)
+          if not card.top or card.top == "" then return end
+          local left_margin_len = 2
+          local sep_len = 3
+          
+          local border_hl = idx == M.selected_idx and "ShowKeySelectedBorder" or "ShowKeyBorder"
+
+          -- Calculate start offsets for each line
+          local off = {}
+          if not is_second_col then
+            off.top = left_margin_len
+            off.mid1 = left_margin_len
+            off.mid2 = left_margin_len
+            off.bot = left_margin_len
+          else
+            off.top = left_margin_len + first_card_widths.top + sep_len
+            off.mid1 = left_margin_len + first_card_widths.mid1 + sep_len
+            off.mid2 = left_margin_len + first_card_widths.mid2 + sep_len
+            off.bot = left_margin_len + first_card_widths.bot + sep_len
+          end
+
+          -- 1. Selection Background (Optional/Subtle)
+          if idx == M.selected_idx then
+            selected_row = row + 1
+            table.insert(hls, { row, off.top, off.top + #card.top, "ShowKeySelected" })
+            table.insert(hls, { row + 1, off.mid1, off.mid1 + #card.mid1, "ShowKeySelected" })
+            table.insert(hls, { row + 2, off.mid2, off.mid2 + #card.mid2, "ShowKeySelected" })
+            table.insert(hls, { row + 3, off.bot, off.bot + #card.bot, "ShowKeySelected" })
+          end
+
+          -- 2. Borders
+          table.insert(hls, { row, off.top, off.top + #card.top, border_hl })
+          table.insert(hls, { row + 1, off.mid1, off.mid1 + 4, border_hl }) 
+          table.insert(hls, { row + 1, off.mid1 + #card.mid1 - 4, off.mid1 + #card.mid1, border_hl })
+          table.insert(hls, { row + 2, off.mid2, off.mid2 + 4, border_hl }) 
+          table.insert(hls, { row + 2, off.mid2 + #card.mid2 - 4, off.mid2 + #card.mid2, border_hl })
+          table.insert(hls, { row + 3, off.bot, off.bot + #card.bot, border_hl })
+          
+          -- 3. Content
+          table.insert(hls, { row + 1, off.mid1 + 4, off.mid1 + 4 + #card.title, "ShowKeyCardTitle" })
+          table.insert(hls, { row + 1, off.mid1 + #card.mid1 - #card.keys - 4, off.mid1 - 4 + #card.mid1, "ShowKeyBadge" })
+          if card.desc ~= "" then
+            table.insert(hls, { row + 2, off.mid2 + 4, off.mid2 + 4 + #card.desc, "ShowKeyCardDesc" })
+          end
+        end
+
+        local c1_widths = { top = #c1.top, mid1 = #c1.mid1, mid2 = #c1.mid2, bot = #c1.bot }
+        add_card_hls(s1, idx1, current_row, c1, false)
+        if s2 then
+          add_card_hls(s2, idx2, current_row, c2, true, c1_widths)
+        end
+
+        current_row = current_row + 5
       end
-      
-      current_row = (s.title and s.desc) and current_row + 3 or current_row + 2
     end
   end
 
   vim.api.nvim_buf_set_lines(M.body_buf, 0, -1, false, lines)
-  
-  -- Apply highlights
   for _, hl in ipairs(hls) do
-    vim.api.nvim_buf_add_highlight(M.body_buf, ns, hl[4], hl[1], hl[2], hl[3])
+    if hl[1] < #lines then
+      pcall(vim.api.nvim_buf_add_highlight, M.body_buf, ns, hl[4], hl[1], hl[2], hl[3])
+    end
   end
 
-  -- Set cursor for auto-scroll
   if selected_row and M.body_win and vim.api.nvim_win_is_valid(M.body_win) then
-    vim.api.nvim_win_set_cursor(M.body_win, { math.min(selected_row, #lines), 0 })
+    vim.api.nvim_win_set_cursor(M.body_win, { math.min(selected_row + 1, #lines), 0 })
   end
-
   vim.api.nvim_buf_set_option(M.body_buf, "modifiable", false)
 end
 

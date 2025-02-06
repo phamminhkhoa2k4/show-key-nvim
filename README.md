@@ -8,10 +8,10 @@ A premium, searchable Neovim shortcut viewer popup with manual grouping and mode
 
 - 🔍 **Reactive Search**: Filter shortcuts by title, keys, description, or group as you type.
 - 📦 **Manual Grouping**: Organize your keymaps into custom categories.
-- 🎨 **Premium UI**: Modern card-based layout with separate Title (Bold) and Description (Italic).
-- 🌫️ **Transparency**: Support for transparent backgrounds (winblend).
-- ⌨️ **Badges**: Beautifully rendered keybinding badges for clear visibility.
-- 🖱️ **Navigation**: Smoothly navigate with `j`/`k` and close with `q`/`Esc`.
+- 🎨 **Premium UI**: Modern 2-column grid with individual card borders and key-cap styles.
+- 󰌌 **Fixed Header**: Sticky header with centered title and search box.
+- 🌫️ **Transparency**: Support for transparent backgrounds.
+- 🖱️ **Navigation**: Grid-based navigation (`h`/`j`/`k`/`l`) and auto-close on focus leave.
 
 ## 📦 Installation
 
@@ -89,14 +89,24 @@ require("show-key").register_shortcuts({
 - `<BS>`: Delete last search character.
 - `<Esc>` / `q`: Close the popup.
 
-## 🎨 Highlights
-Customize these highlight groups for a unique look:
-- `ShowKeyGroup`: Group headers.
-- `ShowKeyCardTitle`: Shortcut main title.
-- `ShowKeyCardDesc`: Shortcut secondary description.
-- `ShowKeyBadge`: Keybinding badges background/foreground.
-- `ShowKeySelected`: Active selection row background.
-- `ShowKeySearchIcon`: The search icon in the header.
+## 🎨 Customization (Styles)
+
+You can fully customize the colors and styles of the popup in your `setup` function:
+
+```lua
+require("show-key").setup({
+  styles = {
+    header = { fg = "#7aa2f7", bold = true },
+    group = { fg = "#bb9af7", bold = true },
+    card_title = { fg = "#c0caf5", bold = true },
+    card_desc = { fg = "#565f89", italic = true },
+    badge = { bg = "#3b4261", fg = "#7aa2f7", bold = true }, -- The [...] shortcut keys
+    border = { fg = "#7aa2f7" }, -- Main window and card borders
+    selected_border = { fg = "#bb9af7", bold = true }, -- Highlighted card border
+    search_icon = { fg = "#7aa2f7" },
+  }
+})
+```
 
 ## License
 MIT
