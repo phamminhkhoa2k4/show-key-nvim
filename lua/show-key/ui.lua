@@ -20,7 +20,7 @@ function M.create_window()
   local total_width = math.floor(stats.width * config.options.width)
   local total_height = math.floor(stats.height * config.options.height)
   
-  local header_height = 6
+  local header_height = 5
   local body_height = math.max(1, total_height - header_height)
 
   local row = math.floor((stats.height - total_height) / 2)
@@ -115,6 +115,7 @@ function M.setup_highlights()
   vim.api.nvim_set_hl(0, "ShowKeyCardTitle", s.card_title)
   vim.api.nvim_set_hl(0, "ShowKeyCardDesc", s.card_desc)
   vim.api.nvim_set_hl(0, "ShowKeyBadge", s.badge)
+  vim.api.nvim_set_hl(0, "ShowKeyBracket", vim.tbl_extend("force", { bg = s.badge.bg or "NONE" }, s.key_bracket))
   vim.api.nvim_set_hl(0, "ShowKeySelected", { bg = "NONE" })
   vim.api.nvim_set_hl(0, "ShowKeySelectedBorder", vim.tbl_extend("force", { bg = bg }, s.selected_border))
   vim.api.nvim_set_hl(0, "ShowKeySearchIcon", s.search_icon)
@@ -232,7 +233,6 @@ function M.render_header()
 
   local lines = {
     title_line,
-    "",
     border_top,
     search_line,
     border_bot,
@@ -250,25 +250,25 @@ function M.render_header()
   vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyGroup", 0, icon_start, icon_start + #title_icon)
   vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 0, text_start_h, -1)
   
-  -- Search Box Highlights (Rows 2, 3, 4)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 2, 2, -1)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 3, 2, 5) 
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 3, win_width - 4, -1)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 2, -1)
+  -- Search Box Highlights (Rows 1, 2, 3)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 1, 2, -1)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 2, 2, 5) 
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 2, win_width - 4, -1)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 3, 2, -1)
   
-  -- Highlight search icon (Row 3)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeySearchIcon", 3, 4, 7)
+  -- Highlight search icon (Row 2)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeySearchIcon", 2, 4, 7)
   
-  -- Highlight search text (Row 3)
+  -- Highlight search text (Row 2)
   local text_start = 9
   if M.filter_text ~= "" then
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 3, text_start, text_start + #M.filter_text)
+    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 2, text_start, text_start + #M.filter_text)
   else
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 3, text_start, text_start + #search_prompt)
+    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 2, text_start, text_start + #search_prompt)
   end
 
-  -- Separator Highlight (Row 5)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 5, 0, -1)
+  -- Separator Highlight (Row 4)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 0, -1)
   
   vim.api.nvim_buf_set_option(M.header_buf, "modifiable", false)
 end
@@ -403,8 +403,16 @@ function M.render_body()
           table.insert(hls, { row + 3, off.bot, off.bot + #card.bot, border_hl })
           
           -- 3. Content
+          local key_start = off.mid1 + #card.mid1 - #card.keys - 4
+          local keys_raw_len = #s.keys -- Length of keys without brackets
+          
           table.insert(hls, { row + 1, off.mid1 + 4, off.mid1 + 4 + #card.title, "ShowKeyCardTitle" })
-          table.insert(hls, { row + 1, off.mid1 + #card.mid1 - #card.keys - 4, off.mid1 - 4 + #card.mid1, "ShowKeyBadge" })
+          
+          -- Shortcut Keycap: [ Keys ]
+          table.insert(hls, { row + 1, key_start, key_start + 1, "ShowKeyBracket" }) -- [
+          table.insert(hls, { row + 1, key_start + 1, key_start + 1 + keys_raw_len, "ShowKeyBadge" }) -- Keys
+          table.insert(hls, { row + 1, key_start + 1 + keys_raw_len, key_start + 2 + keys_raw_len, "ShowKeyBracket" }) -- ]
+          
           if card.desc ~= "" then
             table.insert(hls, { row + 2, off.mid2 + 4, off.mid2 + 4 + #card.desc, "ShowKeyCardDesc" })
           end

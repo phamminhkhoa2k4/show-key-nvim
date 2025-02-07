@@ -14,7 +14,8 @@ local default_config = {
     group = { fg = "#bb9af7", bold = true },
     card_title = { fg = "#c0caf5", bold = true },
     card_desc = { fg = "#565f89", italic = true },
-    badge = { bg = "#3b4261", fg = "#7aa2f7", bold = true },
+    badge = { bg = "#3b4261", fg = "#c0caf5", bold = true }, -- Shortcut key text
+    key_bracket = { fg = "#7aa2f7" }, -- The brackets [ and ]
     border = { fg = "#7aa2f7" },
     selected_border = { fg = "#7aa2f7" },
     search_icon = { fg = "#7aa2f7" },
