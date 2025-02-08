@@ -23,6 +23,18 @@ function M.register(shortcut)
   table.insert(M.shortcuts, shortcut)
 end
 
+---Remove a shortcut by its keys
+---@param keys string
+function M.remove(keys)
+  for i, s in ipairs(M.shortcuts) do
+    if s.keys == keys then
+      table.remove(M.shortcuts, i)
+      return true
+    end
+  end
+  return false
+end
+
 
 ---Get all shortcuts
 ---@return Shortcut[]

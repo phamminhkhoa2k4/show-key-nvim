@@ -16,15 +16,20 @@ function M.create_window()
   M.filter_text = ""
   M.selected_idx = 1
 
-  local stats = vim.api.nvim_list_uis()[1]
-  local total_width = math.floor(stats.width * config.options.width)
-  local total_height = math.floor(stats.height * config.options.height)
+  local screen_w = vim.o.columns
+  local screen_h = vim.o.lines
+
+  local total_width = math.floor(screen_w * config.options.width)
+  -- Cap width for large screens to maintain centered look
+  if total_width > 120 then total_width = 120 end
   
-  local header_height = 5
+  local total_height = math.floor(screen_h * config.options.height)
+  
+  local header_height = 6
   local body_height = math.max(1, total_height - header_height)
 
-  local row = math.floor((stats.height - total_height) / 2)
-  local col = math.floor((stats.width - total_width) / 2)
+  local row = math.floor((screen_h - total_height) / 2)
+  local col = math.floor((screen_w - total_width) / 2)
 
   -- 1. Create Header Window
   M.header_buf = vim.api.nvim_create_buf(false, true)
@@ -36,16 +41,17 @@ function M.create_window()
     col = col,
     style = "minimal",
     border = { "╭", "─", "╮", "│", "", "", "", "│" }, -- Only top borders
-    focusable = false, -- Prevent focus and scrolling
+    focusable = false,
   }
   M.header_win = vim.api.nvim_open_win(M.header_buf, false, header_opts)
   vim.api.nvim_win_set_option(M.header_win, "winhighlight", "Normal:ShowKeyNormal,FloatBorder:ShowKeyBorder")
   vim.api.nvim_win_set_option(M.header_win, "scrolloff", 0)
   vim.api.nvim_win_set_option(M.header_win, "sidescrolloff", 0)
   vim.api.nvim_win_set_option(M.header_win, "wrap", false)
-  vim.api.nvim_win_set_cursor(M.header_win, {1, 0}) -- Lock at top
+  vim.api.nvim_win_set_cursor(M.header_win, {1, 0})
   vim.api.nvim_win_set_option(M.header_win, "cursorline", false)
   vim.api.nvim_win_set_option(M.header_win, "cursorcolumn", false)
+
   -- 2. Create Body Window
   M.body_buf = vim.api.nvim_create_buf(false, true)
   local body_opts = {
@@ -163,7 +169,7 @@ function M.setup_keymaps()
   end, opts)
 
   -- Search handling: capture almost any printable character and common symbols
-  local exclude = { j = true, k = true, q = true }
+  local exclude = { j = true, k = true, h = true, l = true, q = true, x = true }
   -- ASCII Printable range
   for i = 32, 126 do
     local char = string.char(i)
@@ -176,6 +182,20 @@ function M.setup_keymaps()
     end
   end
   
+  vim.keymap.set("n", "x", function()
+    local shortcuts = M.get_filtered_shortcuts()
+    if #shortcuts == 0 then return end
+    
+    local item = shortcuts[M.selected_idx]
+    if item then
+      registry.remove(item.keys)
+      -- Recover selection if needed
+      M.selected_idx = math.max(1, math.min(M.selected_idx, #M.get_filtered_shortcuts()))
+      M.render()
+      print("Deleted shortcut: " .. (item.title or item.desc))
+    end
+  end, opts)
+
   vim.keymap.set("n", "<BS>", function()
     if #M.filter_text > 0 then
       M.filter_text = M.filter_text:sub(1, -2)
@@ -229,6 +249,7 @@ function M.render_header()
   local border_top = "  ╭" .. string.rep("─", inner_width) .. "╮"
   local search_line = "  │   " .. search_prompt .. string.rep(" ", math.max(0, inner_width - #search_prompt - 4)) .. "│"
   local border_bot = "  ╰" .. string.rep("─", inner_width) .. "╯"
+  local help_line = "  q: Quit | h/j/k/l: Move | x: Delete | Backspace: Undo search"
   local separator = string.rep("─", win_width)
 
   local lines = {
@@ -236,6 +257,7 @@ function M.render_header()
     border_top,
     search_line,
     border_bot,
+    help_line,
     separator
   }
   
@@ -267,8 +289,11 @@ function M.render_header()
     vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 2, text_start, text_start + #search_prompt)
   end
 
-  -- Separator Highlight (Row 4)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 0, -1)
+  -- Help line highlight
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 4, 2, -1)
+
+  -- Separator Highlight (Row 5)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 5, 0, -1)
   
   vim.api.nvim_buf_set_option(M.header_buf, "modifiable", false)
 end
@@ -286,9 +311,11 @@ function M.render_body()
   local selected_row = nil
   local win_width = vim.api.nvim_win_get_width(M.body_win)
   
-  -- Calculate column width based on window width
-  -- Left margin (2) | Card 1 | Separator (3) | Card 2 | Right margin (2)
-  local col_width = math.floor((win_width - 7) / 2)
+  -- Calculate centering
+  local col_width = math.floor((win_width - 10) / 2)
+  local total_content_w = (col_width * 2) + 3
+  local left_margin_len = math.floor((win_width - total_content_w) / 2)
+  local left_margin = string.rep(" ", left_margin_len)
   local inner_w = col_width - 4
 
   local function get_card_lines(s)
@@ -308,21 +335,30 @@ function M.render_body()
       desc_text = desc_text:sub(1, #desc_text - 1)
     end
 
-    local top = "╭" .. string.rep("─", inner_w + 2) .. "╮"
-    local mid1 = "│ " .. title_text .. string.rep(" ", inner_w - sw(title_text) - sw(keys_str)) .. keys_str .. " │"
-    local mid2 = "│ " .. desc_text .. string.rep(" ", inner_w - sw(desc_text)) .. " │"
-    local bot = "╰" .. string.rep("─", inner_w + 2) .. "╯"
+    local b_top_l, b_top_r = "╭", "╮"
+    local b_bot_l, b_bot_r = "╰", "╯"
+    local b_horz, b_vert = "─", "│"
+
+    local top = b_top_l .. string.rep(b_horz, inner_w + 2) .. b_top_r
+    local pad_mid1 = string.rep(" ", inner_w - sw(title_text) - sw(keys_str))
+    local mid1 = b_vert .. " " .. title_text .. pad_mid1 .. keys_str .. " " .. b_vert
+    local pad_mid2 = string.rep(" ", inner_w - sw(desc_text))
+    local mid2 = b_vert .. " " .. desc_text .. pad_mid2 .. " " .. b_vert
+    local bot = b_bot_l .. string.rep(b_horz, inner_w + 2) .. b_bot_r
 
     return { 
       top = top, mid1 = mid1, mid2 = mid2, bot = bot,
-      title = title_text, desc = desc_text, keys = keys_str 
+      title = title_text, desc = desc_text, keys = s.keys,
+      off_title = #b_vert + 1,
+      off_keys = #b_vert + 1 + #title_text + #pad_mid1,
+      off_desc = #b_vert + 1
     }
   end
 
   local current_row = 0
   if #shortcuts == 0 then
-    table.insert(lines, "    ∅ No shortcuts found")
-    table.insert(hls, { 0, 4, -1, "ShowKeyCardDesc" })
+    table.insert(lines, left_margin .. "∅ No shortcuts found")
+    table.insert(hls, { 0, #left_margin, -1, "ShowKeyCardDesc" })
   else
     local groups = {}
     local group_order = {}
@@ -336,9 +372,9 @@ function M.render_body()
 
     for _, gname in ipairs(group_order) do
       local g_shortcuts = groups[gname]
-      table.insert(lines, "  " .. gname:upper())
+      table.insert(lines, left_margin .. gname:upper())
       table.insert(lines, "")
-      table.insert(hls, { current_row, 2, -1, "ShowKeyGroup" })
+      table.insert(hls, { current_row, #left_margin, -1, "ShowKeyGroup" })
       current_row = current_row + 2
 
       for i = 1, #g_shortcuts, 2 do
@@ -353,9 +389,8 @@ function M.render_body()
         end
 
         local c1 = get_card_lines(s1)
-        local c2 = s2 and get_card_lines(s2) or { top="", mid1="", mid2="", bot="", keys="" }
+        local c2 = s2 and get_card_lines(s2) or { top="", mid1="", mid2="", bot="", keys="", title="", desc="" }
         
-        local left_margin = "  "
         local sep = "   "
         table.insert(lines, left_margin .. c1.top .. sep .. c2.top)
         table.insert(lines, left_margin .. c1.mid1 .. sep .. c2.mid1)
@@ -363,65 +398,45 @@ function M.render_body()
         table.insert(lines, left_margin .. c1.bot .. sep .. c2.bot)
         table.insert(lines, "")
 
-        -- Helper to add highlights for a card
-        local function add_card_hls(s, idx, row, card, is_second_col, first_card_widths)
-          if not card.top or card.top == "" then return end
-          local left_margin_len = 2
-          local sep_len = 3
+        -- Helper to add highlights for a card (using byte offsets)
+        local function add_card_hls(c, idx, row, start_bytes)
+          if not c or c.top == "" then return end
+          local border_hl = (idx == M.selected_idx) and "ShowKeySelectedBorder" or "ShowKeyBorder"
           
-          local border_hl = idx == M.selected_idx and "ShowKeySelectedBorder" or "ShowKeyBorder"
-
-          -- Calculate start offsets for each line
-          local off = {}
-          if not is_second_col then
-            off.top = left_margin_len
-            off.mid1 = left_margin_len
-            off.mid2 = left_margin_len
-            off.bot = left_margin_len
-          else
-            off.top = left_margin_len + first_card_widths.top + sep_len
-            off.mid1 = left_margin_len + first_card_widths.mid1 + sep_len
-            off.mid2 = left_margin_len + first_card_widths.mid2 + sep_len
-            off.bot = left_margin_len + first_card_widths.bot + sep_len
-          end
-
-          -- 1. Selection Background (Optional/Subtle)
-          if idx == M.selected_idx then
-            selected_row = row + 1
-            table.insert(hls, { row, off.top, off.top + #card.top, "ShowKeySelected" })
-            table.insert(hls, { row + 1, off.mid1, off.mid1 + #card.mid1, "ShowKeySelected" })
-            table.insert(hls, { row + 2, off.mid2, off.mid2 + #card.mid2, "ShowKeySelected" })
-            table.insert(hls, { row + 3, off.bot, off.bot + #card.bot, "ShowKeySelected" })
-          end
-
-          -- 2. Borders
-          table.insert(hls, { row, off.top, off.top + #card.top, border_hl })
-          table.insert(hls, { row + 1, off.mid1, off.mid1 + 4, border_hl }) 
-          table.insert(hls, { row + 1, off.mid1 + #card.mid1 - 4, off.mid1 + #card.mid1, border_hl })
-          table.insert(hls, { row + 2, off.mid2, off.mid2 + 4, border_hl }) 
-          table.insert(hls, { row + 2, off.mid2 + #card.mid2 - 4, off.mid2 + #card.mid2, border_hl })
-          table.insert(hls, { row + 3, off.bot, off.bot + #card.bot, border_hl })
+          -- 1. Borders
+          table.insert(hls, { row, start_bytes[1], start_bytes[1] + #c.top, border_hl })
+          table.insert(hls, { row + 1, start_bytes[2], start_bytes[2] + 3, border_hl })
+          table.insert(hls, { row + 1, start_bytes[2] + #c.mid1 - 3, start_bytes[2] + #c.mid1, border_hl })
+          table.insert(hls, { row + 2, start_bytes[3], start_bytes[3] + 3, border_hl })
+          table.insert(hls, { row + 2, start_bytes[3] + #c.mid2 - 3, start_bytes[3] + #c.mid2, border_hl })
+          table.insert(hls, { row + 3, start_bytes[4], start_bytes[4] + #c.bot, border_hl })
           
-          -- 3. Content
-          local key_start = off.mid1 + #card.mid1 - #card.keys - 4
-          local keys_raw_len = #s.keys -- Length of keys without brackets
+          if idx == M.selected_idx then selected_row = row end
           
-          table.insert(hls, { row + 1, off.mid1 + 4, off.mid1 + 4 + #card.title, "ShowKeyCardTitle" })
+          -- 2. Content
+          local ks_byte = start_bytes[2] + c.off_keys
+          local rb_byte = ks_byte + 1 + #c.keys
           
-          -- Shortcut Keycap: [ Keys ]
-          table.insert(hls, { row + 1, key_start, key_start + 1, "ShowKeyBracket" }) -- [
-          table.insert(hls, { row + 1, key_start + 1, key_start + 1 + keys_raw_len, "ShowKeyBadge" }) -- Keys
-          table.insert(hls, { row + 1, key_start + 1 + keys_raw_len, key_start + 2 + keys_raw_len, "ShowKeyBracket" }) -- ]
+          table.insert(hls, { row + 1, start_bytes[2] + c.off_title, start_bytes[2] + c.off_title + #c.title, "ShowKeyCardTitle" })
+          table.insert(hls, { row + 1, ks_byte, ks_byte + 1, "ShowKeyBracket" })
+          table.insert(hls, { row + 1, ks_byte + 1, rb_byte, "ShowKeyBadge" })
+          table.insert(hls, { row + 1, rb_byte, rb_byte + 1, "ShowKeyBracket" })
           
-          if card.desc ~= "" then
-            table.insert(hls, { row + 2, off.mid2 + 4, off.mid2 + 4 + #card.desc, "ShowKeyCardDesc" })
+          if c.desc ~= "" then
+            table.insert(hls, { row + 2, start_bytes[3] + c.off_desc, start_bytes[3] + c.off_desc + #c.desc, "ShowKeyCardDesc" })
           end
         end
 
-        local c1_widths = { top = #c1.top, mid1 = #c1.mid1, mid2 = #c1.mid2, bot = #c1.bot }
-        add_card_hls(s1, idx1, current_row, c1, false)
+        local b = #left_margin
+        add_card_hls(c1, idx1, current_row, { b, b, b, b })
         if s2 then
-          add_card_hls(s2, idx2, current_row, c2, true, c1_widths)
+          local s = #sep
+          add_card_hls(c2, idx2, current_row, { 
+            b + #c1.top + s, 
+            b + #c1.mid1 + s, 
+            b + #c1.mid2 + s, 
+            b + #c1.bot + s 
+          })
         end
 
         current_row = current_row + 5

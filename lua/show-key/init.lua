@@ -25,4 +25,9 @@ function M.show()
   require("show-key.ui").create_window()
 end
 
+---Open the shortcut registration form
+function M.register_form()
+  require("show-key.form").open()
+end
+
 return M
