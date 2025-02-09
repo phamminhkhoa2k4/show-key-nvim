@@ -30,4 +30,9 @@ function M.register_form()
   require("show-key.form").open()
 end
 
+---Open the searchable deletion popup
+function M.delete_popup()
+  require("show-key.delete_ui").open()
+end
+
 return M

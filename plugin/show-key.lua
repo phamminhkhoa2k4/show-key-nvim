@@ -11,3 +11,7 @@ end, { desc = "Show shortcut popup" })
 vim.api.nvim_create_user_command("ShowKeyRegister", function()
   require("show-key").register_form()
 end, { desc = "Open shortcut registration form" })
+
+vim.api.nvim_create_user_command("ShowKeyDelete", function()
+  require("show-key").delete_popup()
+end, { desc = "Open searchable deletion popup" })

@@ -25,7 +25,7 @@ function M.create_window()
   
   local total_height = math.floor(screen_h * config.options.height)
   
-  local header_height = 6
+  local header_height = 5
   local body_height = math.max(1, total_height - header_height)
 
   local row = math.floor((screen_h - total_height) / 2)
@@ -169,7 +169,7 @@ function M.setup_keymaps()
   end, opts)
 
   -- Search handling: capture almost any printable character and common symbols
-  local exclude = { j = true, k = true, h = true, l = true, q = true, x = true }
+  local exclude = { j = true, k = true, h = true, l = true, q = true }
   -- ASCII Printable range
   for i = 32, 126 do
     local char = string.char(i)
@@ -182,20 +182,6 @@ function M.setup_keymaps()
     end
   end
   
-  vim.keymap.set("n", "x", function()
-    local shortcuts = M.get_filtered_shortcuts()
-    if #shortcuts == 0 then return end
-    
-    local item = shortcuts[M.selected_idx]
-    if item then
-      registry.remove(item.keys)
-      -- Recover selection if needed
-      M.selected_idx = math.max(1, math.min(M.selected_idx, #M.get_filtered_shortcuts()))
-      M.render()
-      print("Deleted shortcut: " .. (item.title or item.desc))
-    end
-  end, opts)
-
   vim.keymap.set("n", "<BS>", function()
     if #M.filter_text > 0 then
       M.filter_text = M.filter_text:sub(1, -2)
@@ -248,8 +234,7 @@ function M.render_header()
   local inner_width = win_width - 8
   local border_top = "  ╭" .. string.rep("─", inner_width) .. "╮"
   local search_line = "  │   " .. search_prompt .. string.rep(" ", math.max(0, inner_width - #search_prompt - 4)) .. "│"
-  local border_bot = "  ╰" .. string.rep("─", inner_width) .. "╯"
-  local help_line = "  q: Quit | h/j/k/l: Move | x: Delete | Backspace: Undo search"
+  local help_line = "  q: Quit | h/j/k/l: Move | Backspace: Undo search"
   local separator = string.rep("─", win_width)
 
   local lines = {
@@ -257,7 +242,6 @@ function M.render_header()
     border_top,
     search_line,
     border_bot,
-    help_line,
     separator
   }
   
@@ -284,16 +268,8 @@ function M.render_header()
   -- Highlight search text (Row 2)
   local text_start = 9
   if M.filter_text ~= "" then
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 2, text_start, text_start + #M.filter_text)
-  else
-    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 2, text_start, text_start + #search_prompt)
-  end
-
-  -- Help line highlight
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyCardDesc", 4, 2, -1)
-
-  -- Separator Highlight (Row 5)
-  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 5, 0, -1)
+  -- Separator Highlight (Row 4)
+  vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 0, -1)
   
   vim.api.nvim_buf_set_option(M.header_buf, "modifiable", false)
 end
