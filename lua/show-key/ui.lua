@@ -234,6 +234,7 @@ function M.render_header()
   local inner_width = win_width - 8
   local border_top = "  ╭" .. string.rep("─", inner_width) .. "╮"
   local search_line = "  │   " .. search_prompt .. string.rep(" ", math.max(0, inner_width - #search_prompt - 4)) .. "│"
+  local border_bot = "  ╰" .. string.rep("─", inner_width) .. "╯"
   local help_line = "  q: Quit | h/j/k/l: Move | Backspace: Undo search"
   local separator = string.rep("─", win_width)
 
@@ -268,6 +269,9 @@ function M.render_header()
   -- Highlight search text (Row 2)
   local text_start = 9
   if M.filter_text ~= "" then
+    vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyHeader", 2, text_start, text_start + #M.filter_text)
+  end
+
   -- Separator Highlight (Row 4)
   vim.api.nvim_buf_add_highlight(M.header_buf, ns, "ShowKeyBorder", 4, 0, -1)
   

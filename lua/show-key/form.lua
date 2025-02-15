@@ -21,7 +21,7 @@ function M.open()
   local screen_w = vim.o.columns
   local screen_h = vim.o.lines
   local width = 60
-  local height = 12
+  local height = 10
   local row = math.floor((screen_h - height) / 2)
   local col = math.floor((screen_w - width) / 2)
 
@@ -34,12 +34,17 @@ function M.open()
     col = col,
     style = "minimal",
     border = "rounded",
-    title = " Register New Shortcut ",
+    title = " 󰌌  REGISTER SHORTCUT ",
     title_pos = "center",
+    footer = " <Tab>/<C-j>: Next | <S-Tab>/<C-k>: Prev | <CR>: Save | <Esc>: Close ",
+    footer_pos = "center",
   }
   M.win = vim.api.nvim_open_win(M.buf, true, opts)
   
-  vim.api.nvim_win_set_option(M.win, "winhighlight", "Normal:ShowKeyNormal,FloatBorder:ShowKeyBorder")
+  vim.api.nvim_win_set_option(M.win, "winhighlight", "Normal:ShowKeyNormal,FloatBorder:ShowKeyBorder,FloatTitle:ShowKeyHeader,FloatFooter:ShowKeyCardDesc")
+  vim.api.nvim_win_set_option(M.win, "scrolloff", 0)
+  vim.api.nvim_win_set_option(M.win, "sidescrolloff", 0)
+  vim.api.nvim_win_set_option(M.win, "wrap", false)
 
   M.setup_keymaps()
   M.render()
@@ -69,9 +74,7 @@ function M.render()
     table.insert(lines, "") -- Spacer
   end
 
-  table.insert(lines, "────────────────────────────────────────────────────────────")
-  table.insert(lines, " [Tab] Next | [S-Tab] Prev | [Enter] Save | [Esc] Cancel")
-  table.insert(hls, { #lines - 1, 0, -1, "ShowKeyCardDesc" })
+  table.insert(lines, "") -- Extra padding at the bottom
 
   vim.api.nvim_buf_set_lines(M.buf, 0, -1, false, lines)
   for _, hl in ipairs(hls) do
@@ -124,6 +127,26 @@ function M.setup_keymaps()
       print("Title and Keys are required!")
     end
   end, opts)
+
+  -- Field Navigation via Ctrl-j/k (and Tab/S-Tab)
+  vim.keymap.set("n", "<C-j>", function()
+    M.active_field = (M.active_field % #M.fields) + 1
+    M.render()
+  end, opts)
+  vim.keymap.set("n", "<C-k>", function()
+    M.active_field = (M.active_field - 2 + #M.fields) % #M.fields + 1
+    M.render()
+  end, opts)
+
+  -- Disable scrolling keys and mouse
+  local scroll_keys = {
+    "<Up>", "<Down>", "<Left>", "<Right>",
+    "<ScrollWheelUp>", "<ScrollWheelDown>",
+    "<C-f>", "<C-b>", "<C-d>", "<C-u>"
+  }
+  for _, k in ipairs(scroll_keys) do
+    vim.keymap.set("n", k, "<Nop>", opts)
+  end
 
   vim.keymap.set("n", "<Esc>", M.close, opts)
   vim.keymap.set("n", "q", M.close, opts)
