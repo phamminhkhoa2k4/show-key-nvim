@@ -24,6 +24,10 @@ A premium, searchable Neovim shortcut viewer popup with manual grouping, modern 
 ```lua
 {
   "phamminhkhoa2k4/show-key-nvim",
+  cmd = { "ShowKey", "ShowKeyRegister", "ShowKeyDelete" },
+  keys = {
+    { "<leader>sk", "<cmd>ShowKey<cr>", desc = "Show Shortcuts" },
+  },
   config = function()
     require("show-key").setup({
       title = "Neovim Shortcuts",
