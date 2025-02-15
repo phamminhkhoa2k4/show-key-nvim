@@ -2,7 +2,11 @@
 
 A premium, searchable Neovim shortcut viewer popup with manual grouping, modern card-based UI, and interactive management.
 
-![Show Shortcut Viewer](./images/main_ui.png)
+## 📸 Screenshots
+
+| Shortcut Viewer | Registration Form | Deletion Manager |
+| :---: | :---: | :---: |
+| ![Main UI](./images/sk.png) | ![Register](./images/skr.png) | ![Delete](./images/skd.png) |
 
 ## ✨ Features
 
@@ -20,17 +24,19 @@ A premium, searchable Neovim shortcut viewer popup with manual grouping, modern 
 ```lua
 {
   "phamminhkhoa2k4/show-key-nvim",
-  opts = {
-    title = "Neovim Shortcuts",
-    transparent = true,
-    width = 0.8,
-    height = 0.8,
-    -- Initial shortcuts
-    shortcuts = {
-      { title = "Find Files", keys = "<leader>ff", desc = "Telescope find files", group = "Files" },
-      { title = "Live Grep", keys = "<leader>fg", desc = "Search text", group = "Files" },
-    }
-  }
+  config = function()
+    require("show-key").setup({
+      title = "Neovim Shortcuts",
+      transparent = true,
+      width = 0.8,
+      height = 0.8,
+      -- Initial shortcuts
+      shortcuts = {
+        { title = "Find Files", keys = "<leader>ff", desc = "Telescope find files", group = "Files" },
+        { title = "Live Grep", keys = "<leader>fg", desc = "Search text", group = "Files" },
+      }
+    })
+  end
 }
 ```
 
@@ -66,13 +72,13 @@ require("show-key").setup({
 - `:ShowKeyDelete`: Open the management UI to delete shortcuts.
 
 ### 󰌌 Shortcut Viewer (Main)
-![Main UI](./images/main_ui.png)
+![Main UI](./images/sk.png)
 - **Navigation**: `h` / `j` / `k` / `l` to move through the card grid.
 - **Filtering**: Just type to search. Use `Backspace` to undo.
 - **Closing**: `Esc` or `q`.
 
 ### 📝 Registration Form
-![Register Form](./images/register_ui.png)
+![Register Form](./images/skr.png)
 - **Navigation**: `<Tab>` / `<C-j>` (Next) or `<S-Tab>` / `<C-k>` (Prev).
 - **Controls**:
     - `[Type]`: enter data (all keys including `h/j/k/l` are supported).
@@ -80,7 +86,7 @@ require("show-key").setup({
     - `<Esc>` / `q`: Close.
 
 ### 🗑️ Deletion Manager
-![Delete UI](./images/delete_ui.png)
+![Delete UI](./images/skd.png)
 - **Navigation**: `<Tab>` (Next) or `<S-Tab>` (Prev).
 - **Filtering**: Type to search the list.
 - **Actions**:
